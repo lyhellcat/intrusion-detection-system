@@ -1,16 +1,17 @@
 #define _GNU_SOURCE
 #include "sniff.h"
-#include "dispatch.h"
 
 #include <netinet/if_ether.h>
 #include <pcap.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "dispatch.h"
+
 struct arguments {
     pcap_t *pcap_handle;
     int verbose;
-}; // check
+};
 
 void packet_handler(u_char *args, const struct pcap_pkthdr *header,
                     const u_char *packet) {
