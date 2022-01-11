@@ -4,7 +4,7 @@
 
 #include "analysis.h"
 
-void dispatch(struct pcap_pkthdr *header,
+void dispatch(const struct pcap_pkthdr *header,
               const unsigned char *packet,
               int verbose) {
   // TODO: Your part 2 code here

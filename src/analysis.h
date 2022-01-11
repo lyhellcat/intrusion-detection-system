@@ -3,7 +3,7 @@
 
 #include <pcap.h>
 
-void analyse(struct pcap_pkthdr *header,
+void analyse(const struct pcap_pkthdr *header,
               const unsigned char *packet,
               int verbose);
 

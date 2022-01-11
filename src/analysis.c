@@ -64,7 +64,7 @@ void signal_handler(int signo) {
     assert(false);
 }
 
-void analyse(struct pcap_pkthdr *header, const unsigned char *packet,
+void analyse(const struct pcap_pkthdr *header, const unsigned char *packet,
              int verbose) {
     // Handler ^C signal
     struct sigaction action = {.sa_handler = signal_handler};
