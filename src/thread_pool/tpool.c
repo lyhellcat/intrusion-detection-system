@@ -1,8 +1,4 @@
-#include "dispatch.h"
-
-#include <pcap.h>
-#include <stdlib.h>
-#include "analysis.h"
+#include "tpool.h"
 
 tpool_work_t *tpool_work_create(thread_func_t func, void *arg) {
     tpool_work_t *work;
@@ -18,15 +14,18 @@ tpool_work_t *tpool_work_create(thread_func_t func, void *arg) {
 }
 
 void tpool_work_destroy(tpool_work_t *work) {
-    if (work == NULL) return;
+    if (work == NULL)
+        return;
     free(work);
 }
 
 tpool_work_t *tpool_work_get(tpool_t *tm) {
     tpool_work_t *work;
-    if (tm == NULL) return NULL;
+    if (tm == NULL)
+        return NULL;
     work = tm->work_first;
-    if (work == NULL) return NULL;
+    if (work == NULL)
+        return NULL;
     if (work->next == NULL) {
         tm->work_first = NULL;
         tm->work_last = NULL;
@@ -50,7 +49,8 @@ void *tpool_worker(void *arg) {
             // lock mutex
             pthread_cond_wait(&(tm->work_cond), &(tm->work_mutex));
         }
-        if (tm->stop) break;
+        if (tm->stop)
+            break;
 
         work = tpool_work_get(tm);
         tm->working_cnt++;
@@ -66,7 +66,7 @@ void *tpool_worker(void *arg) {
             pthread_cond_signal(&(tm->working_cond));
         pthread_mutex_unlock(&(tm->work_mutex));
     }
-    tm->thread_cnt--;  // Thread is stopping
+    tm->thread_cnt--; // Thread is stopping
     pthread_cond_signal(&(tm->working_cond));
     pthread_mutex_unlock(&(tm->work_mutex));
     return NULL;
@@ -159,15 +159,4 @@ void tpool_wait(tpool_t *tm) {
         }
     }
     pthread_mutex_unlock(&(tm->work_mutex));
-}
-
-void dispatch(const struct pcap_pkthdr *header, const unsigned char *packet,
-              int verbose, tpool_t *tm) {
-    // TODO: Your part 2 code here
-    // This method should handle dispatching of work to threads.
-    struct arguments args = {header, packet, verbose, tm};
-    memcpy(args.packet, packet, sizeof(char) * header->len);
-
-    // tpool_add_work(tm, analyse, &args);
-    analyse(&args);
 }

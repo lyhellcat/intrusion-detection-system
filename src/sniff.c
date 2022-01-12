@@ -5,35 +5,42 @@
 #include <pcap.h>
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <unistd.h>
+#include <sys/sysinfo.h>
 #include "dispatch.h"
 
 struct arguments {
     pcap_t *pcap_handle;
     int verbose;
+    tpool_t *tm;
 };
 
 void packet_handler(u_char *args, const struct pcap_pkthdr *header,
                     const u_char *packet) {
-    struct arguments *arg = (struct arguments *)args;
+    struct arguments *args_pack = (struct arguments *)args;
     if (packet == NULL) {
         // pcap_next can return null if no packet is seen within a timeout
-        if (arg->verbose) {
-            printf("No packet received. %s\n", pcap_geterr(arg->pcap_handle));
+        if (args_pack->verbose) {
+            printf("No packet received. %s\n", pcap_geterr(args_pack->pcap_handle));
         }
     } else {
         // If verbose is set to 1, dump raw packet to terminal
-        if (arg->verbose) {
+        if (args_pack->verbose) {
             dump(packet, header->len);
         }
+        
         // Dispatch packet for processing
-        dispatch(header, packet, arg->verbose);
+        dispatch(header, packet, args_pack->verbose, args_pack->tm);
     }
 }
 
 // Application main sniffing loop
 void sniff(char *interface, int verbose) {
     char errbuf[PCAP_ERRBUF_SIZE];
+
+    // get_nprocs() returns the number of processors configured by the operating
+    // system. Use this number to create thread pool
+    tpool_t *tm = tpool_create(get_nprocs());
 
     // Open the specified network interface for packet capture. pcap_open_live()
     // returns the handle to be used for the packet capturing session. check the
@@ -46,7 +53,7 @@ void sniff(char *interface, int verbose) {
         printf("SUCCESS! Opened %s for capture\n", interface);
     }
     // Using pacp_loop() to more efficient capture packets
-    struct arguments args = { pcap_handle, verbose };
+    struct arguments args = { pcap_handle, verbose, tm };
     pcap_loop(pcap_handle, 0, packet_handler, (u_char*)&args);
 }
 
