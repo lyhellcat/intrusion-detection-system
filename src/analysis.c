@@ -22,11 +22,11 @@ typedef struct _IP_node {
 } IP_node;
 
 IP_node *IP_list;
+tpool_t *tm;
 int syn_packets_count;
 int arp_packets_count;
 int violations_count;
 int IP_list_len;
-tpool_t *tm;
 
 void add_list(struct in_addr ip_addr) {
     IP_node *p = IP_list;
@@ -70,11 +70,12 @@ void signal_handler(int signo) {
     assert(false);
 }
 
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mutex_syn_cnt = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mutex_arp_cnt = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mutex_vio_cnt = PTHREAD_MUTEX_INITIALIZER;
 
 void analyse(void *args) {
-    printf("----> %d <-----\n ", gettid());
-    pthread_mutex_lock(&mutex);
+    // !! Jast lock when adding statistics and adding list
     // Unpack arguments
     const struct pcap_pkthdr *header = ((struct arguments *)args)->header;
     const unsigned char *packet = ((struct arguments *)args)->packet;
@@ -93,25 +94,49 @@ void analyse(void *args) {
             struct tcphdr *tcp_ptr =
                 (struct tcphdr *)(packet += ip_ptr->ip_hl * 4);
             if (tcp_ptr->syn) {
+                if (pthread_mutex_lock(&mutex_syn_cnt) != 0) {
+                    perror("pthread_mutex_lock");
+                    exit(EXIT_FAILURE);
+                }
                 syn_packets_count++;
                 add_list(ip_ptr->ip_src);
+                if (pthread_mutex_unlock(&mutex_syn_cnt) != 0) {
+                    perror("pthread_mutex_unlock");
+                    exit(EXIT_FAILURE);
+                }
             }
             if (ntohs(tcp_ptr->dest) == 80) { // HTTP
                 char *payload = (char *)(packet += tcp_ptr->th_off * 4);
                 if (strstr(payload, "Host: www.google.co.uk") != NULL ||
                     strstr(payload, "Host: www.bbc.com") != NULL) {
+                    if (pthread_mutex_lock(&mutex_vio_cnt) != 0) {
+                        perror("pthread_mutex_lock");
+                        exit(EXIT_FAILURE);
+                    }
                     puts("=============================");
                     puts("Blacklisted URL violation detected");
                     printf("Source IP address: %s\n", inet_ntoa(ip_ptr->ip_src));
                     printf("Destination IP address: %s\n", inet_ntoa(ip_ptr->ip_dst));
                     puts("=============================");
                     violations_count++;
+                    if (pthread_mutex_unlock(&mutex_vio_cnt) != 0) {
+                        perror("pthread_mutex_unlock");
+                        exit(EXIT_FAILURE);
+                    }
                 }
             }
         }
     } else if (ether_type == ETHERTYPE_ARP) { // ARP packet
+        if (pthread_mutex_lock(&mutex_arp_cnt) != 0) {
+            perror("pthread_mutex_lock");
+            exit(EXIT_FAILURE);
+        }
         arp_packets_count++;
+        if (pthread_mutex_unlock(&mutex_arp_cnt) != 0) {
+            perror("pthread_mutex_unlock");
+            exit(EXIT_FAILURE);
+        }
     }
-    // free(((struct arguments *)args)->packet);
-    pthread_mutex_unlock(&mutex);
+    free(((struct arguments *)args)->packet);
+    free(args);
 }

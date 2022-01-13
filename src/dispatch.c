@@ -169,5 +169,8 @@ void dispatch(const struct pcap_pkthdr *header, const unsigned char *packet,
     struct arguments *args = malloc(sizeof(struct arguments));
     args->packet = malloc(header->len);
     memcpy(args->packet, packet, header->len);
+    args->tm = tm;
+    args->verbose = verbose;
     tpool_add_work(tm, analyse, args);
+    // analyse(args);
 }
