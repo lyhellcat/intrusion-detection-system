@@ -73,9 +73,8 @@ void signal_handler(int signo) {
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void analyse(void *args) {
-    pthread_mutex_lock(&mutex);
     printf("----> %d <-----\n ", gettid());
-
+    pthread_mutex_lock(&mutex);
     // Unpack arguments
     const struct pcap_pkthdr *header = ((struct arguments *)args)->header;
     const unsigned char *packet = ((struct arguments *)args)->packet;
@@ -107,12 +106,12 @@ void analyse(void *args) {
                     printf("Destination IP address: %s\n", inet_ntoa(ip_ptr->ip_dst));
                     puts("=============================");
                     violations_count++;
-                    exit(0);
                 }
             }
         }
     } else if (ether_type == ETHERTYPE_ARP) { // ARP packet
         arp_packets_count++;
     }
+    // free(((struct arguments *)args)->packet);
     pthread_mutex_unlock(&mutex);
 }

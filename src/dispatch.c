@@ -2,6 +2,7 @@
 
 #include <pcap.h>
 #include <stdlib.h>
+#include <string.h>
 #include "analysis.h"
 
 tpool_work_t *tpool_work_create(thread_func_t func, void *arg) {
@@ -165,9 +166,8 @@ void dispatch(const struct pcap_pkthdr *header, const unsigned char *packet,
               int verbose, tpool_t *tm) {
     // TODO: Your part 2 code here
     // This method should handle dispatching of work to threads.
-    struct arguments args = {header, packet, verbose, tm};
-    memcpy(args.packet, packet, sizeof(char) * header->len);
-
-    // tpool_add_work(tm, analyse, &args);
-    analyse(&args);
+    struct arguments *args = malloc(sizeof(struct arguments));
+    args->packet = malloc(header->len);
+    memcpy(args->packet, packet, header->len);
+    tpool_add_work(tm, analyse, args);
 }

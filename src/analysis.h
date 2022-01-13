@@ -5,8 +5,8 @@
 #include "dispatch.h"
 
 struct arguments {
-    const struct pcap_pkthdr *header;
-    const unsigned char *packet;
+    struct pcap_pkthdr *header;
+    unsigned char *packet;
     int verbose;
     tpool_t *tm;
 };

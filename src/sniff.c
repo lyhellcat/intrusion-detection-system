@@ -5,6 +5,7 @@
 #include <pcap.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/sysinfo.h>
 #include "dispatch.h"
@@ -28,7 +29,6 @@ void packet_handler(u_char *args, const struct pcap_pkthdr *header,
         if (args_pack->verbose) {
             dump(packet, header->len);
         }
-        
         // Dispatch packet for processing
         dispatch(header, packet, args_pack->verbose, args_pack->tm);
     }
