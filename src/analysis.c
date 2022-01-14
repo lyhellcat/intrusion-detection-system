@@ -50,7 +50,6 @@ void signal_handler(int signo) {
                 syn_packets_count, IP_addr_num);
         printf("%d ARP responses (cache poisoning)\n", arp_packets_count);
         printf("%d URL Blacklist violations\n", violations_count);
-        tpool_wait(tm);
         tpool_destroy(tm);
         exit(EXIT_SUCCESS);
     }

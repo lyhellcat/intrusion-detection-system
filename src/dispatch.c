@@ -25,10 +25,13 @@ void tpool_work_destroy(tpool_work_t *work) {
 
 tpool_work_t *tpool_work_get(tpool_t *tm) {
     tpool_work_t *work;
-    if (tm == NULL) return NULL;
+    if (tm == NULL)
+        return NULL;
     work = tm->work_head;
-    if (work == NULL) return NULL;
-    if (work->next == NULL) {
+    if (work == NULL)
+        return NULL;
+    // Maintaning the list work_head work_tail references for us
+    if (work->next == NULL) {  // work_queue empty
         tm->work_head = NULL;
         tm->work_tail = NULL;
     } else {
