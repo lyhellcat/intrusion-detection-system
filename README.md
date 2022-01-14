@@ -69,17 +69,64 @@ void set_bit(uint32_t ip_addr) {
 
 `ARP`可将IP地址转换为Mac地址. 主机维护一个ARP缓存, 即IP地址和MAC地址之间的映射表, 并使用它连接到网络上的目的地. 若主机不知道某个 IP 地址的 MAC 地址, 则会发出一个 ARP 请求包, 向网络上的其他机器询问匹配的 MAC 地址. ARP协议不是为安全设计的, 不会验证ARP请求的响应是否来自真正的授权方. 即使主机从未发出过ARP请求, 也可以接收ARP响应, 这是ARP协议中一个容被用于攻击的弱点. 
 
+ARP欺骗 (ARP中毒), 是一种中间人攻击的形式, 拦截网络设备之间的通信, 然后伪造ARP响应. 
+
+可以使用如下方式发送伪造的ARP数据包. 
+
+```python
+operation = 2        # 2 specifies ARP Reply
+victim = '127.0.0.1' # We're poisoning our own cache for this demonstration
+spoof = '192.168.222.222' # We are trying to poison the entry for this IP
+mac = 'de:ad:be:cf:ca:fe' # Silly mac address
+
+
+arp=ARP(op=operation, psrc=spoof, pdst=victim, hwdst=mac)
+send(arp)
+```
+
+
+
+![image-20220114154432124](https://raw.githubusercontent.com/lyhellcat/Pic/master/img/image-20220114154432124.png)
+
+### 黑名单URL
+
+除了来自外部的攻击外, 入侵检测系统通常还会监视源自内部网络的流量. 这将会检测到与可疑服务器的连接, 防止内网信息外泄或遭受病毒攻击. 系统中将`www. google.co.uk `与`www.bbc.com`假定为可疑域, 当有HTTP流量被发送到这些网络时, 我们希望得到提示. 
+
+HTTP请求的`header`段为: 
+
+```http
+GET / HTTP/1.1\r\n
+User=Agent: Wget/1.20.3 (linux-gnu)\r\n
+Accept: */*\r\n
+Host: www.bbc.com
+Connection: Keep-Alive\r\n
+```
+
+![image-20220114155134757](https://raw.githubusercontent.com/lyhellcat/Pic/master/img/image-20220114155134757.png)
+
+由此,  我们对所有访问80端口的TCP数据包的payload部分进行检查, 使用`strstr(payload, "Host: www.google.co.uk")`来确定是否访问了不可信的域.
+
+![image-20220114155631937](https://raw.githubusercontent.com/lyhellcat/Pic/master/img/image-20220114155631937.png)
+
+## Threadpool Model
+
 
 
 ## 测试
 
+测试部分, 我们选择`hping3`工具作为负载, 尝试更改`-c`参数指定的数据包数量以及`-d`参数指定的数据包大小, 得到性能记录. 
+
+测试机配置: Intel(R) Xeon(R) Silver 4210R CPU @ 2.40GHz * 40
+
+(1) 启动5个设定参数为`-c 600000 -d 30000`的`hping3`进程, 此时内网带宽为7.54Gbips, 进程`idsniff`的负载为802%, 可见确实有多个线程在工作, 能够处理较大的流量负载
+
 ![image-20220114143426009](https://raw.githubusercontent.com/lyhellcat/Pic/master/img/image-20220114143426009.png)
 
-发送数量多但单个数据包大小较小(`datasize`为120)的情况
+(2) 考虑发送数量多但单个数据包大小较小的情况, 设定`-c 600000 -d 120`, 启动5个`hping3`进程. 此时`hping3`的CPU占用率较低(30%)而`idsniff`占用率为`1282%`. 由此可见多个较小的数据包给`idsniff`带来的检测压力更大. 
 
 ![image-20220114143844613](https://raw.githubusercontent.com/lyhellcat/Pic/master/img/image-20220114143844613.png)
 
-
+测试结果初步表明了多线程`idsniff`可有效应对高流量的网络. 
 
 ## Usage
 

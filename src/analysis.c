@@ -18,6 +18,8 @@
 #include <limits.h>
 #include <stdint.h>
 
+#define MAC_STR_LEN 20
+
 typedef uint32_t word_t;
 enum { BITS_PER_WORD = sizeof(word_t) * CHAR_BIT };
 #define WORD_OFFSET(b) ((b) / BITS_PER_WORD)
@@ -53,6 +55,23 @@ void signal_handler(int signo) {
         exit(EXIT_SUCCESS);
     }
     assert(false);
+}
+
+void print_arp(const struct ether_arp *arp_ptr) {
+    puts("Detect ARP responses");
+    char mac_str[MAC_STR_LEN];
+    snprintf(mac_str, sizeof(mac_str), "%02x:%02x:%02x:%02x:%02x:%02x",
+             arp_ptr->arp_sha[0], arp_ptr->arp_sha[1], arp_ptr->arp_sha[2],
+             arp_ptr->arp_sha[3], arp_ptr->arp_sha[4], arp_ptr->arp_sha[5]);
+    printf("Sender hardware address: %s\n", mac_str);
+    printf("Sender IP address: %d.%d.%d.%d\n", arp_ptr->arp_spa[0],
+           arp_ptr->arp_spa[1], arp_ptr->arp_spa[2], arp_ptr->arp_spa[3]);
+    snprintf(mac_str, sizeof(mac_str), "%02x:%02x:%02x:%02x:%02x:%02x",
+             arp_ptr->arp_tha[0], arp_ptr->arp_tha[1], arp_ptr->arp_tha[2],
+             arp_ptr->arp_tha[3], arp_ptr->arp_tha[4], arp_ptr->arp_tha[5]);
+    printf("Target hardware address: %s\n", mac_str);
+    printf("Target IP address: %d.%d.%d.%d\n", arp_ptr->arp_tpa[0],
+           arp_ptr->arp_tpa[1], arp_ptr->arp_tpa[2], arp_ptr->arp_tpa[3]);
 }
 
 static pthread_mutex_t mutex_syn_cnt = PTHREAD_MUTEX_INITIALIZER;
@@ -117,6 +136,11 @@ void analyse(void *args) {
             exit(EXIT_FAILURE);
         }
         arp_packets_count++;
+
+        struct ether_arp *arp_ptr =
+            (struct ether_arp *)(packet += sizeof(struct ether_header));
+        print_arp(arp_ptr);
+
         if (pthread_mutex_unlock(&mutex_arp_cnt) != 0) {
             perror("pthread_mutex_unlock");
             exit(EXIT_FAILURE);
