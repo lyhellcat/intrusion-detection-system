@@ -15,56 +15,41 @@
 #include <string.h>
 #include <pthread.h>
 #include <sys/types.h>
+#include <limits.h>
+#include <stdint.h>
 
-typedef struct _IP_node {
-    struct in_addr ip_addr;
-    struct _IP_node *next;
-} IP_node;
+typedef uint32_t word_t;
+enum { BITS_PER_WORD = sizeof(word_t) * CHAR_BIT };
+#define WORD_OFFSET(b) ((b) / BITS_PER_WORD)
+#define BIT_OFFSET(b) ((b) % BITS_PER_WORD)
 
-IP_node *IP_list;
 tpool_t *tm;
 int syn_packets_count;
 int arp_packets_count;
 int violations_count;
-int IP_list_len;
+int IP_addr_num;
+word_t words[1ll << 27];  // Up to 2^32 IP addresses
 
-void add_list(struct in_addr ip_addr) {
-    IP_node *p = IP_list;
-    while (p != NULL) {
-        if (p->ip_addr.s_addr == ip_addr.s_addr)
-          return;
-        p = p->next;
-    }
-    IP_node *new_node = calloc(1, sizeof(IP_node));
-    if (IP_list == NULL) {
-        IP_list = new_node;
-    } else {
-        new_node->next = IP_list->next;
-        IP_list->next = new_node;
-    }
-    IP_list_len++;
+int get_bit(uint32_t ip_addr) {
+    word_t bit = words[WORD_OFFSET(ip_addr)] & (1 << BIT_OFFSET(ip_addr));
+    return bit != 0;
 }
 
-void free_list() {
-    IP_node *p = IP_list;
-    IP_node *q = IP_list;
-    while (p != NULL) {
-        q = p;
-        p = p->next;
-        free(q);
-    }
+void set_bit(uint32_t ip_addr) {
+    words[WORD_OFFSET(ip_addr)] |= (1 << BIT_OFFSET(ip_addr));
+    if (get_bit(ip_addr))
+        IP_addr_num++;
 }
 
 void signal_handler(int signo) {
     if (signo == SIGINT) {
         puts("\nIntrusion Detection Report: ");
         printf("%d SYN packets  detected from %d different IPs (syn attack)\n",
-                syn_packets_count, IP_list_len);
+                syn_packets_count, IP_addr_num);
         printf("%d ARP responses (cache poisoning)\n", arp_packets_count);
         printf("%d URL Blacklist violations\n", violations_count);
         tpool_wait(tm);
         tpool_destroy(tm);
-        free_list();
         exit(EXIT_SUCCESS);
     }
     assert(false);
@@ -98,8 +83,8 @@ void analyse(void *args) {
                     perror("pthread_mutex_lock");
                     exit(EXIT_FAILURE);
                 }
+                set_bit(ip_ptr->ip_src.s_addr);
                 syn_packets_count++;
-                add_list(ip_ptr->ip_src);
                 if (pthread_mutex_unlock(&mutex_syn_cnt) != 0) {
                     perror("pthread_mutex_unlock");
                     exit(EXIT_FAILURE);

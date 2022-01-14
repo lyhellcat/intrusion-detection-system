@@ -7,9 +7,10 @@
 #include "sniff.h"
 
 // Command line options
-#define OPTSTRING "vi:"
+#define OPTSTRING "vi:?h"
 static struct option long_opts[] = {{"interface", optional_argument, NULL, 'i'},
-                                    {"verbose", optional_argument, NULL, 'v'}};
+                                    {"verbose", optional_argument, NULL, 'v'},
+                                    {"help", optional_argument, NULL, '?'}};
 
 struct arguments {
     char *interface;
@@ -17,10 +18,11 @@ struct arguments {
 };
 
 void print_usage(char *progname) {
-    fprintf(stderr, "A Packet Sniffer/Intrusion Detection System tutorial\n");
+    fprintf(stderr, "A Packet Sniffer/Intrusion Detection System\n");
     fprintf(stderr, "Usage: %s [OPTIONS]...\n\n", progname);
     fprintf(stderr, "\t-i [interface]\tSpecify network interface to sniff\n");
     fprintf(stderr, "\t-v\t\tEnable verbose mode. Useful for Debugging\n");
+    fprintf(stderr, "\t-h\t\tDisplay this help information\n");
 }
 
 int main(int argc, char *argv[]) {
