@@ -23,14 +23,14 @@ tpool_work_t *tpool_work_get(tpool_t *tm) {
     tpool_work_t *work;
     if (tm == NULL)
         return NULL;
-    work = tm->work_first;
+    work = tm->work_head;
     if (work == NULL)
         return NULL;
     if (work->next == NULL) {
-        tm->work_first = NULL;
-        tm->work_last = NULL;
+        tm->work_head = NULL;
+        tm->work_tail = NULL;
     } else {
-        tm->work_first = work->next;
+        tm->work_head = work->next;
     }
     return work;
 }
@@ -43,7 +43,7 @@ void *tpool_worker(void *arg) {
     while (1) {
         pthread_mutex_lock(&(tm->work_mutex));
         // Check if there is any work available for processing
-        while (tm->work_first == NULL && !tm->stop) {
+        while (tm->work_head == NULL && !tm->stop) {
             // unlock mutex
             // block thread, until work_cond signal
             // lock mutex
@@ -62,7 +62,7 @@ void *tpool_worker(void *arg) {
         }
         pthread_mutex_lock(&(tm->work_mutex));
         tm->working_cnt--;
-        if (!tm->stop && tm->working_cnt == 0 && tm->work_first == NULL)
+        if (!tm->stop && tm->working_cnt == 0 && tm->work_head == NULL)
             pthread_cond_signal(&(tm->working_cond));
         pthread_mutex_unlock(&(tm->work_mutex));
     }
@@ -86,8 +86,8 @@ tpool_t *tpool_create(size_t num) {
     pthread_cond_init(&(tm->work_cond), NULL);
     pthread_cond_init(&(tm->working_cond), NULL);
 
-    tm->work_first = NULL;
-    tm->work_last = NULL;
+    tm->work_head = NULL;
+    tm->work_tail = NULL;
 
     for (i = 0; i < num; i++) {
         pthread_create(&thread, NULL, tpool_worker, tm);
@@ -104,7 +104,7 @@ void tpool_destroy(tpool_t *tm) {
     if (tm == NULL) return;
 
     pthread_mutex_lock(&(tm->work_mutex));
-    work = tm->work_first;
+    work = tm->work_head;
     while (work != NULL) {
         work2 = work->next;
         tpool_work_destroy(work);
@@ -132,12 +132,12 @@ bool tpool_add_work(tpool_t *tm, thread_func_t func, void *arg) {
     if (work == NULL) return false;
 
     pthread_mutex_lock(&(tm->work_mutex));
-    if (tm->work_first == NULL) {
-        tm->work_first = work;
-        tm->work_last = tm->work_first;
+    if (tm->work_head == NULL) {
+        tm->work_head = work;
+        tm->work_tail = tm->work_head;
     } else {
-        tm->work_last->next = work;
-        tm->work_last = work;
+        tm->work_tail->next = work;
+        tm->work_tail = work;
     }
 
     pthread_cond_broadcast(&(tm->work_cond));

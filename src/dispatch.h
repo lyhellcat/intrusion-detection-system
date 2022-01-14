@@ -16,8 +16,8 @@ typedef struct tpool_work {
 } tpool_work_t;
 
 typedef struct tpool {
-    tpool_work_t *work_first;
-    tpool_work_t *work_last;
+    tpool_work_t *work_head;
+    tpool_work_t *work_tail;
     pthread_mutex_t work_mutex;
     pthread_cond_t work_cond;     // There is work to be processed
     pthread_cond_t working_cond;  // No threads processing

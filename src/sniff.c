@@ -40,7 +40,7 @@ void sniff(char *interface, int verbose) {
 
     // get_nprocs() returns the number of processors configured by the operating
     // system. Use this number to create thread pool
-    tpool_t *tm = tpool_create(get_nprocs());
+    tpool_t *tm = tpool_create(get_nprocs() + 1);
 
     // Open the specified network interface for packet capture. pcap_open_live()
     // returns the handle to be used for the packet capturing session. check the

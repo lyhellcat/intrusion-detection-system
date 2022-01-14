@@ -14,8 +14,7 @@ src
 ├── dispatch.c  # 将analyse()任务分发给多个线程
 ├── dispatch.h
 ├── main.c     # 包含解析命令行参数的代码段, 同时调用sniff()在指定的端口上启动抓包
-├── perf.data
-├── perf.data.old
+├── perf.data  # 使用perf工具检测性能得到的报告
 ├── sniff.c   # 使用pcap_loop()持续捕获数据包
 └── sniff.h
 ```
@@ -110,7 +109,52 @@ Connection: Keep-Alive\r\n
 
 ## Threadpool Model
 
+### 为什么选择线程池? 
 
+线程池是基于池化思想的线程管理工具, 维护多个线程, 等待线程池管理者分配课并发执行的任务. 使用线程池一方面可避免处理任务时创建销毁线程的开销, 另一方面避免了线程数量膨胀导致的过分调度问题, 可保证对内核的充分利用. 
+
+使用线程池可以: 
+
+- **降低资源消耗**, 通过池化技术重复利用已创建的线程, 降低线程创建和销毁造成的损耗. 
+- **提高响应速度**, 任务到达时, 无需等待线程创建即可立即执行
+- **提高线程的可管理性**, 线程是稀缺资源, 如果无限制创建, 不仅会消耗系统资源, 而且会导致资源调度失衡, 系统出现颠簸, 降低系统的稳定性. 
+
+线程池主要应用了池化思想. 在计算机中, 池化思想表现为: 同一管理计算机资源, 包括服务器, 存储, 网络资源等. 其他典型的策略包括: 
+
+1. **内存池 Memory pooling**, 预先申请内存, 提高内存处理速度, 减少内存碎片
+2. **连接池 Connection pooling**, 预先申请数据库连接, 提升申请连接的速度, 降低系统开销
+3. **实例池 Object pooling**, 循环使用对象, 减少资源初始化和释放时的开销. 
+
+[工业界应用的线程池](https://tech.meituan.com/2020/04/02/java-pooling-pratice-in-meituan.html)可以支持动态化设定参数, 这里为了实现简单, 选择将线程池大小设置为`核心数+1, `, 即`get_nprocs() + 1`. 
+
+线程池中有2个重要的函数, `tpool_add_work`将工作添加到工作队列中进行处理, `tpool_wait`将阻塞当前进程直至所有工作完成. 
+
+工作队列可设计为一个存储有需要调用的函数以及函数参数的简单链队列. 
+
+```C
+typedef struct tpool_work {
+    thread_func_t func;
+    void *arg;
+    struct tpool_work *next;
+} tpool_work_t;
+```
+
+由于工作队列使用了链队列实现, 因此线程池需要维护工作队列的队头以及队尾, 以高效的完成对链队列的`push() pop()`操作. 线程池还需要2个条件变量, `work_cond`表示有工作需要处理, `working_cond`在当前没有线程处于工作状态时发出信号, `working_cnt`表示多少线程正在处理工作,  `thread_cnt`表示有多少线程处于`alive`状态. 
+
+```c
+typedef struct tpool {
+    tpool_work_t *work_head;
+    tpool_work_t *work_tail;
+    pthread_mutex_t work_mutex;
+    pthread_cond_t work_cond;     // There is work to be processed
+    pthread_cond_t working_cond;  // No threads processing
+    size_t working_cnt;           // How many threads are actively processing work
+    size_t thread_cnt;            // How many threads are alive
+    bool stop;
+} tpool_t;
+```
+
+线程池的具体实现详见代码. 
 
 ## 测试
 
