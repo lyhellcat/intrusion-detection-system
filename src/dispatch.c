@@ -3,6 +3,7 @@
 #include <pcap.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include "analysis.h"
 
 tpool_work_t *tpool_work_create(thread_func_t func, void *arg) {
@@ -45,33 +46,39 @@ void *tpool_worker(void *arg) {
     tpool_t *tm = arg;
     tpool_work_t *work;
 
-    while (1) {
+    while (1) { // Keep the thread running
+        // Lock is only there to sync pulling work from the queue
         pthread_mutex_lock(&(tm->work_mutex));
         // Check if there is any work available for processing
         while (tm->work_head == NULL && !tm->stop) {
+            // Looping here instead of using an if statement to
+            // handle spurious wakeups
             // unlock mutex
             // block thread, until work_cond signal
             // lock mutex
             pthread_cond_wait(&(tm->work_cond), &(tm->work_mutex));
         }
-        if (tm->stop) break;
+        if (tm->stop)
+            break;
 
         work = tpool_work_get(tm);
         tm->working_cnt++;
         pthread_mutex_unlock(&(tm->work_mutex));
 
+        // Process the work and destroy the work object
         if (work != NULL) {
             work->func(work->arg);
             tpool_work_destroy(work);
         }
+
         pthread_mutex_lock(&(tm->work_mutex));
-        tm->working_cnt--;
+        tm->working_cnt--; // Work is done
         if (!tm->stop && tm->working_cnt == 0 && tm->work_head == NULL)
             pthread_cond_signal(&(tm->working_cond));
         pthread_mutex_unlock(&(tm->work_mutex));
     }
     tm->thread_cnt--;  // Thread is stopping
-    pthread_cond_signal(&(tm->working_cond));
+    pthread_cond_signal(&(tm->working_cond)); // For tpool_wait
     pthread_mutex_unlock(&(tm->work_mutex));
     return NULL;
 }
@@ -86,6 +93,7 @@ tpool_t *tpool_create(size_t num) {
     tm = calloc(1, sizeof(*tm));
     tm->thread_cnt = num;
 
+    // Dynamic allocate mutex and cond
     pthread_mutex_init(&(tm->work_mutex), NULL);
     pthread_cond_init(&(tm->work_cond), NULL);
     pthread_cond_init(&(tm->working_cond), NULL);
@@ -105,7 +113,8 @@ void tpool_destroy(tpool_t *tm) {
     tpool_work_t *work;
     tpool_work_t *work2;
 
-    if (tm == NULL) return;
+    if (tm == NULL)
+        return;
 
     pthread_mutex_lock(&(tm->work_mutex));
     work = tm->work_head;
@@ -130,10 +139,12 @@ void tpool_destroy(tpool_t *tm) {
 bool tpool_add_work(tpool_t *tm, thread_func_t func, void *arg) {
     tpool_work_t *work;
 
-    if (tm == NULL) return false;
+    if (tm == NULL)
+        return false;
 
     work = tpool_work_create(func, arg);
-    if (work == NULL) return false;
+    if (work == NULL)
+        return false;
 
     pthread_mutex_lock(&(tm->work_mutex));
     if (tm->work_head == NULL) {
@@ -143,7 +154,7 @@ bool tpool_add_work(tpool_t *tm, thread_func_t func, void *arg) {
         tm->work_tail->next = work;
         tm->work_tail = work;
     }
-
+    // Wake up all blocked threads
     pthread_cond_broadcast(&(tm->work_cond));
     pthread_mutex_unlock(&(tm->work_mutex));
 

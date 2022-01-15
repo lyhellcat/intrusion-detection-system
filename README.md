@@ -139,7 +139,7 @@ typedef struct tpool_work {
 } tpool_work_t;
 ```
 
-由于工作队列使用了链队列实现, 因此线程池需要维护工作队列的队头以及队尾, 以高效的完成对链队列的`push() pop()`操作. 线程池还需要2个条件变量, `work_cond`表示有工作需要处理, `working_cond`在当前没有线程处于工作状态时发出信号, `working_cnt`表示多少线程正在处理工作,  `thread_cnt`表示有多少线程处于`alive`状态. 
+由于工作队列使用了链队列实现, 因此线程池需要维护工作队列的队头以及队尾, 以高效的完成对链队列的`push() pop()`操作. 线程池还需要2个条件变量, `work_cond`表示当前有工作需要处理, `working_cond`在当前没有线程处于工作状态时发出信号, `working_cnt`表示多少线程正在处理工作,  `thread_cnt`表示有多少线程处于`alive`状态. 
 
 ```c
 typedef struct tpool {

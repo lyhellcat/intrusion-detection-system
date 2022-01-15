@@ -26,10 +26,10 @@ enum { BITS_PER_WORD = sizeof(word_t) * CHAR_BIT };
 #define BIT_OFFSET(b) ((b) % BITS_PER_WORD)
 
 tpool_t *tm;
-int syn_packets_count;
-int arp_packets_count;
-int violations_count;
-int IP_addr_num;
+static int syn_packets_count;
+static int arp_packets_count;
+static int violations_count;
+static int IP_addr_num;
 word_t words[1ll << 27];  // Up to 2^32 IP addresses
 
 int get_bit(uint32_t ip_addr) {
