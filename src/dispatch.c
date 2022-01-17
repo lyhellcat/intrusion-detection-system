@@ -162,7 +162,8 @@ bool tpool_add_work(tpool_t *tm, thread_func_t func, void *arg) {
 }
 
 void tpool_wait(tpool_t *tm) {
-    if (tm == NULL) return;
+    if (tm == NULL)
+        return;
 
     pthread_mutex_lock(&(tm->work_mutex));
     while (1) {
