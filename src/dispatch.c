@@ -20,7 +20,8 @@ tpool_work_t *tpool_work_create(thread_func_t func, void *arg) {
 }
 
 void tpool_work_destroy(tpool_work_t *work) {
-    if (work == NULL) return;
+    if (work == NULL)
+        return;
     free(work);
 }
 
